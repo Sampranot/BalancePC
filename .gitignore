@@ -1,28 +1,21 @@
-# BalancePC — .gitignore
-
 # Python
 __pycache__/
-*.py[cod]
+*.pyc
+*.pyo
 *.egg-info/
-dist/
-build/
-*.egg
-
-# Virtual environment
+.env
 venv/
 .venv/
-env/
+
+# Build
+build/
+dist/
+*.spec
 
 # IDE
 .vscode/
 .idea/
 *.swp
-*.swo
-
-# Project specific
-*.log
-*.zip
-.balance_state.json
 
 # OS
 Thumbs.db
