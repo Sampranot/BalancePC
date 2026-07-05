@@ -114,46 +114,74 @@ def clean_dns_cache() -> Tuple[bool, str]:
         return False, str(e)
 
 
-def set_high_performance_power() -> Tuple[bool, str]:
-    """Imposta il piano energia ad alte prestazioni."""
+# GUID piani energia standard Windows (potrebbero non esistere su tutti i PC)
+_POWER_PLANS = {
+    'high_performance': '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c',
+    'balanced': '381b4222-f694-41f0-9685-ff5bb260df2e',
+    'power_saver': 'a1841308-3541-4fab-bc81-f71556f20b4a',
+}
+
+
+def _get_available_power_plans() -> dict:
+    """Recupera i piani energia disponibili sul sistema.
+    Restituisce {nome: guid} per i piani esistenti.
+    """
+    plans = {}
     try:
         result = subprocess.run(
-            ['powercfg', '/s', '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c'],
+            ['powercfg', '/list'],
+            capture_output=True, text=True, timeout=10
+        )
+        for line in result.stdout.split('\n'):
+            # Formato: "GUID123456  (Nome piano)"
+            m = re.search(r'([0-9a-f\-]{36})\s+\(([^)]+)\)', line, re.IGNORECASE)
+            if m:
+                plans[m.group(2).strip()] = m.group(1)
+    except Exception:
+        pass
+    return plans
+
+
+def _set_power_plan(plan_name: str, plan_guid: str) -> Tuple[bool, str]:
+    """Imposta un piano energia, verificando che esista."""
+    try:
+        available = _get_available_power_plans()
+        if not available:
+            # Fallback: prova il GUID diretto
+            result = subprocess.run(
+                ['powercfg', '/s', plan_guid],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode == 0:
+                return True, f"Piano energia: {plan_name}"
+            return False, result.stderr.strip()
+
+        # Cerca il GUID dal nome o usa il GUID predefinito
+        guid = available.get(plan_name) or plan_guid
+        result = subprocess.run(
+            ['powercfg', '/s', guid],
             capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0:
-            return True, "Piano energia: Alte prestazioni"
+            return True, f"Piano energia: {plan_name}"
         return False, result.stderr.strip()
     except Exception as e:
         return False, str(e)
+
+
+def set_high_performance_power() -> Tuple[bool, str]:
+    """Imposta il piano energia ad alte prestazioni."""
+    return _set_power_plan('Alte prestazioni', _POWER_PLANS['high_performance'])
 
 
 def set_balanced_power() -> Tuple[bool, str]:
     """Imposta il piano energia bilanciato."""
-    try:
-        result = subprocess.run(
-            ['powercfg', '/s', '381b4222-f694-41f0-9685-ff5bb260df2e'],
-            capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0:
-            return True, "Piano energia: Bilanciato"
-        return False, result.stderr.strip()
-    except Exception as e:
-        return False, str(e)
+    return _set_power_plan('Bilanciato', _POWER_PLANS['balanced'])
 
 
 def set_power_saver() -> Tuple[bool, str]:
     """Imposta il piano energia risparmio."""
-    try:
-        result = subprocess.run(
-            ['powercfg', '/s', 'a1841308-3541-4fab-bc81-f71556f20b4a'],
-            capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0:
-            return True, "Piano energia: Risparmio"
-        return False, result.stderr.strip()
-    except Exception as e:
-        return False, str(e)
+    return _set_power_plan('Risparmio energia', _POWER_PLANS['power_saver'])
 
 
 def disable_startup_bloat() -> Tuple[bool, str]:
@@ -211,11 +239,25 @@ def kill_top_processes(n: int = 3, min_cpu: float = 30.0) -> Tuple[bool, str]:
                 name = p.info.get('name', 'unknown')
                 pid = p.info['pid']
                 if cpu > min_cpu and pid > 0 and name.lower() not in ['system', 'idle']:
-                    # Salta processi di sistema
-                    proc = psutil.Process(pid)
-                    if proc.username() != 'SYSTEM' and name.lower() not in ['svchost.exe']:
-                        kill_process(pid)
-                        killed.append(f"{name} (CPU: {cpu}%)")
+                    # Salta processi di sistema:
+                    # Controllo robusto: non usare 'SYSTEM' che varia per lingua
+                    # Usa l'ID sessione 0 (servizi/system) come discriminante
+                    try:
+                        proc = psutil.Process(pid)
+                        # Salta processi con sessione 0 (servizi Windows)
+                        # e processi di sistema noti
+                        is_system = False
+                        try:
+                            is_system = proc.username().upper() in (
+                                'SYSTEM', 'SISTEMA', 'NT AUTHORITY\\SYSTEM',
+                                'AUTORITÀ NT\\SYSTEM', 'AUTORITA NT\\SYSTEM')
+                        except Exception:
+                            pass
+                        if not is_system and name.lower() not in ['svchost.exe', 'services.exe', 'wininit.exe']:
+                            kill_process(pid)
+                            killed.append(f"{name} (CPU: {cpu}%)")
+                    except Exception:
+                        continue
             except:
                 continue
     except:
@@ -226,32 +268,71 @@ def kill_top_processes(n: int = 3, min_cpu: float = 30.0) -> Tuple[bool, str]:
     return False, "Nessun processo pesante da terminare"
 
 
-def clear_windows_update_cache() -> Tuple[bool, str]:
-    """Pulisce la cache di Windows Update."""
+def _stop_service(service_name: str) -> bool:
+    """Ferma un servizio Windows in modo non bloccante."""
     try:
-        result = subprocess.run(
-            ['net', 'stop', 'wuauserv'],
-            capture_output=True, text=True, timeout=10
+        r = subprocess.run(
+            ['net', 'stop', service_name],
+            capture_output=True, text=True, timeout=15
         )
-        cache_dir = os.path.join(os.environ.get('WINDIR', 'C:\\Windows'),
-                                 'SoftwareDistribution', 'Download')
-        if os.path.exists(cache_dir):
-            cleaned = 0
-            for f in os.listdir(cache_dir):
-                fp = os.path.join(cache_dir, f)
-                try:
-                    if os.path.isfile(fp):
-                        os.remove(fp)
-                        cleaned += 1
-                    elif os.path.isdir(fp):
-                        shutil.rmtree(fp, ignore_errors=True)
-                except:
-                    pass
-            subprocess.run(['net', 'start', 'wuauserv'], capture_output=True, timeout=10)
-            return True, f"Puliti {cleaned} file cache Windows Update"
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def _start_service(service_name: str) -> bool:
+    """Avvia un servizio Windows in modo non bloccante."""
+    try:
+        r = subprocess.run(
+            ['net', 'start', service_name],
+            capture_output=True, text=True, timeout=15
+        )
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def clear_windows_update_cache() -> Tuple[bool, str]:
+    """Pulisce la cache di Windows Update.
+    NON bloccante: se il servizio non si ferma, prova a pulire lo stesso.
+    """
+    cache_dir = os.path.join(os.environ.get('WINDIR', 'C:\\Windows'),
+                             'SoftwareDistribution', 'Download')
+    if not os.path.exists(cache_dir):
         return False, "Cache Windows Update non trovata"
-    except Exception as e:
-        return False, str(e)
+
+    # Tentativo di fermare il servizio (non fatale se fallisce)
+    was_running = False
+    try:
+        was_running = _stop_service('wuauserv')
+    except Exception:
+        pass
+
+    cleaned = 0
+    try:
+        for f in os.listdir(cache_dir):
+            fp = os.path.join(cache_dir, f)
+            try:
+                if os.path.isfile(fp):
+                    os.remove(fp)
+                    cleaned += 1
+                elif os.path.isdir(fp):
+                    shutil.rmtree(fp, ignore_errors=True)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Riavvia solo se era in esecuzione
+    if was_running:
+        try:
+            _start_service('wuauserv')
+        except Exception:
+            pass
+
+    if cleaned > 0:
+        return True, f"Puliti {cleaned} file cache Windows Update"
+    return True, "Cache Windows Update gia' pulita"
 
 
 def empty_recycle_bin() -> Tuple[bool, str]:

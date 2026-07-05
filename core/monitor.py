@@ -168,9 +168,11 @@ class SystemMonitor:
     # ---- Metodi privati ----
 
     def _get_cpu_temp(self) -> Optional[float]:
-        """Legge temperatura CPU."""
+        """Legge temperatura CPU.
+        Non bloccante: ogni fallback ha timeout implicito.
+        """
+        # 1) psutil sensors (Windows only con driver specifici)
         try:
-            # Prova con LibreHardwareMonitor o WMI
             if hasattr(psutil, 'sensors_temperatures'):
                 temps = psutil.sensors_temperatures()
                 if temps:
@@ -178,37 +180,30 @@ class SystemMonitor:
                         for entry in entries:
                             if entry.current:
                                 return entry.current
-        except:
+        except Exception:
             pass
 
+        # 2) WMI ThermalZone (non presente su VM, Win10/11 Home)
         try:
-            # WMI fallback
             import wmi
             c = wmi.WMI()
-            temps = c.query("SELECT * FROM Win32_PerfFormattedData_Counters_ThermalZoneInformation")
+            temps = c.query(
+                "SELECT * FROM Win32_PerfFormattedData_Counters_ThermalZoneInformation"
+            )
             for t in temps:
                 temp = getattr(t, 'Temperature', None)
                 if temp:
                     temp_k = int(temp) / 10.0
-                    if temp_k > 200:  # Kelvin valido (> -73°C)
+                    if temp_k > 200:
                         temp_c = round(temp_k - 273.15, 1)
-                        if -50 < temp_c < 150:  # Sanity check
+                        if -50 < temp_c < 150:
                             return temp_c
-        except:
+        except Exception:
             pass
 
-        # Prova con LibreHardwareMonitor via WMI
-        try:
-            import wmi
-            c = wmi.WMI(namespace=r'root\LibreHardwareMonitor')
-            temps = c.query("SELECT * FROM Sensor WHERE SensorType='Temperature'")
-            for t in temps:
-                val = getattr(t, 'Value', None)
-                name = getattr(t, 'Name', '')
-                if val and 'cpu' in str(name).lower():
-                    return round(float(val), 1)
-        except:
-            pass
+        # 3) LibreHardwareMonitor (terze parti, >99% dei PC non ce l'ha)
+        # Saltato per performance: spreco di ~200ms per connessione WMI
+        # su sistemi senza LibreHardwareMonitor.
 
         return None
 

@@ -46,11 +46,16 @@ def main():
             import time
             while True:
                 stats = mon.get_stats()
-                print(f"\rCPU: {stats['cpu_percent']:5.1f}% | "
-                      f"RAM: {stats['ram_percent']:5.1f}% | "
-                      f"DISK: {stats['disk_percent']:5.1f}% | "
-                      f"TEMP: {stats.get('cpu_temp', 'N/A')}°C | "
-                      f"PROCESSI: {stats['process_count']:4d}    ", end="")
+                cpu = getattr(stats, 'cpu_percent', 0) or 0
+                ram = getattr(stats, 'ram_percent', 0) or 0
+                disk = getattr(stats, 'disk_percent', 0) or 0
+                temp = getattr(stats, 'cpu_temp', None) or 'N/A'
+                procs = getattr(stats, 'process_count', 0) or 0
+                print(f"\rCPU: {cpu:5.1f}% | "
+                      f"RAM: {ram:5.1f}% | "
+                      f"DISK: {disk:5.1f}% | "
+                      f"TEMP: {temp}°C | "
+                      f"PROCESSI: {procs:4d}    ", end="")
                 time.sleep(2)
         except KeyboardInterrupt:
             print("\nFermo.")
