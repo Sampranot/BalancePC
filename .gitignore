@@ -1,0 +1,29 @@
+# BalancePC — .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+*.log
+*.zip
+.balance_state.json
+
+# OS
+Thumbs.db
+.DS_Store

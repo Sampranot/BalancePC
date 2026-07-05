@@ -1,0 +1,10 @@
+# BalancePC — Requirements
+
+# System monitoring
+psutil>=6.0.0
+
+# WMI (Windows)
+wmi>=1.5.1
+
+# Telemetry WebSocket (anonima)
+websocket-client>=1.8.0
