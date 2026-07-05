@@ -132,7 +132,7 @@ def set_balanced_power() -> Tuple[bool, str]:
     """Imposta il piano energia bilanciato."""
     try:
         result = subprocess.run(
-            ['powercfg', '/s', '381b4222-f694-41f0-9685-ff5bb260df2f'],
+            ['powercfg', '/s', '381b4222-f694-41f0-9685-ff5bb260df2e'],
             capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0:
