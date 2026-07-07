@@ -1,5 +1,9 @@
 # BalancePC
 
+[![Download Latest](https://img.shields.io/github/v/release/Sampranot/BalancePC?label=Download%20v1.0.0&logo=windows)](https://github.com/Sampranot/BalancePC/releases/latest)
+[![GitHub Downloads](https://img.shields.io/github/downloads/Sampranot/BalancePC/total?logo=github)](https://github.com/Sampranot/BalancePC/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue?logo=windows)]()
+
 > **Il tuo PC si adatta a te, non il contrario.**
 
 BalancePC monitora come usi il PC e ottimizza CPU, RAM, disco e piano energia di conseguenza. Senza chiederti niente. Senza pubblicità.
@@ -13,11 +17,11 @@ Scarica da GitHub → Doppio click su --optimize → 8.8GB liberati in 10 second
 ## Perché BalancePC?
 
 | CCleaner / System Mechanic / Razer Cortex | BalancePC |
-|---|---|
+|---|---|---|
 | Versione "free" fa quasi niente | **100% gratuito**, tutto funziona |
 | Pieno di pubblicità e offerte | **Zero pubblicità, zero popup** |
 | Ottimizzazioni generiche | **Si adatta a COSA stai facendo** (gaming, lavoro, sviluppo, idle) |
-| 50MB+ di installer | **7MB**, un exe |
+| 50MB+ di installer | **15MB**, un exe |
 
 ## Scarica
 
@@ -113,7 +117,7 @@ python main.py --optimize
 
 - **Adattivo**. Si adatta al tuo utilizzo, non viceversa.
 - **Sicuro**. Non tocca mai processi di sistema, qualunque sia la lingua di Windows.
-- **Leggero**. Un exe da 7MB. Niente bloat, niente servizi in background (se non vuoi).
+- **Leggero**. Un exe da 15MB. Niente bloat, niente servizi in background (se non vuoi).
 
 ---
 
