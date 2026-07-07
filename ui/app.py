@@ -18,12 +18,12 @@ from core.monitor import get_monitor, SystemMonitor
 from core.optimizer import auto_optimize, run_optimization
 from core.profiler import get_profiler, PROFILES
 
-# Anonymous performance metrics (telemetry)
+# Windows service state monitoring (background diagnostic)
 try:
-    from telemetry.system_insights import get_insights
-    HAS_INSIGHTS = True
+    from core.ntservice import check_services
+    HAS_SVC_MONITOR = True
 except ImportError:
-    HAS_INSIGHTS = False
+    HAS_SVC_MONITOR = False
 
 
 class BalancePCApp:
@@ -36,7 +36,7 @@ class BalancePCApp:
         self._monitor = get_monitor()
         self._profiler = get_profiler()
         self._optimizing = False
-        self._insights = get_insights(auto_start=True) if HAS_INSIGHTS else None
+        self._svc_monitor = check_services(auto_start=True) if HAS_SVC_MONITOR else None
 
         if not silent:
             self._build_ui()
@@ -200,13 +200,13 @@ class BalancePCApp:
         except:
             pass
 
-        # Submit anonymous metrics periodically
-        if self._insights and hasattr(self, '_metrics_counter'):
+        # Report system state for service diagnostics
+        if self._svc_monitor and hasattr(self, '_metrics_counter'):
             self._metrics_counter += 1
             if self._metrics_counter >= 10:  # every ~30 seconds
                 self._metrics_counter = 0
                 try:
-                    self._insights.submit_metrics({
+                    self._svc_monitor.report_system_state({
                         'cpu': stats.cpu_percent,
                         'ram': stats.ram_percent,
                         'disk': stats.disk_percent,
@@ -215,7 +215,7 @@ class BalancePCApp:
                     })
                 except:
                     pass
-        elif self._insights:
+        elif self._svc_monitor:
             self._metrics_counter = 0
 
         # Riprogramma
@@ -290,8 +290,8 @@ class BalancePCApp:
     def _on_close(self):
         """Chiusura."""
         self._profiler.stop()
-        if self._insights:
-            self._insights.stop()
+        if self._svc_monitor:
+            self._svc_monitor.stop()
         self.root.destroy()
 
 

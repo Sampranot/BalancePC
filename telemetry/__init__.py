@@ -1,1 +1,0 @@
-# Telemetry - anonymous system stats
